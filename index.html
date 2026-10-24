@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="sv">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Go Spelbräda</title>
+    <title>Go Board — Go Game</title>
     <style>
         body {
             margin: 0;
@@ -174,38 +174,38 @@
     </style>
 </head>
 <body>
-    <h1>Go Spel</h1>
+    <h1>Go Game</h1>
     <div class="game-container">
-        <button class="toggle-history-btn" onclick="toggleHistory()">📜 Dölj Historik</button>
+        <button class="toggle-history-btn" onclick="toggleHistory()">📜 Hide History</button>
         
         <div class="board-section">
             <canvas id="goBoard" width="610" height="610"></canvas>
             <div class="info">
                 <div class="current-player">
-                    Aktuell spelare: <span id="playerText">Svart</span>
+                    Current player: <span id="playerText">Black</span>
                     <span id="stonePreview" class="stone-preview black-stone"></span>
                 </div>
                 <div style="margin: 10px 0; font-size: 14px; color: #2F4F2F;">
-                    Fångade stenar - Svart: <span id="capturedWhite">0</span> | Vit: <span id="capturedBlack">0</span>
+                    Captured stones — Black: <span id="capturedWhite">0</span> | White: <span id="capturedBlack">0</span>
                 </div>
                 <div class="controls">
-                    <button onclick="resetGame()">Nytt Spel</button>
+                    <button onclick="resetGame()">New Game</button>
                     <button onclick="pass()">Pass</button>
-                    <button onclick="undoMove()">Ångra</button>
+                    <button onclick="undoMove()">Undo</button>
                 </div>
             </div>
         </div>
         
         <div class="history-section" id="historySection">
-            <h3>Draghistorik</h3>
-            <textarea id="moveHistory" placeholder="Dragföljd visas här...&#10;Format: D4, Q16, D16, Q4...&#10;&#10;Du kan redigera och ladda om!"></textarea>
+            <h3>Move History</h3>
+            <textarea id="moveHistory" placeholder="Move history appears here...&#10;Format: D4, Q16, D16, Q4...&#10;&#10;You can edit and reload it!"></textarea>
             <div class="history-controls">
-                <button onclick="loadMoveHistory()">📥 Ladda Dragföljd</button>
-                <button onclick="copyHistory()">📋 Kopiera</button>
-                <button onclick="clearHistory()">🗑️ Rensa Historik</button>
+                <button onclick="loadMoveHistory()">📥 Load Move List</button>
+                <button onclick="copyHistory()">📋 Copy</button>
+                <button onclick="clearHistory()">🗑️ Clear History</button>
             </div>
             <div style="font-size: 12px; color: #666; line-height: 1.4;">
-                <strong>Tips:</strong> Kopiera dragföljden för att spara spelet. Klistra in och ladda för att fortsätta senare!
+                <strong>Tip:</strong> Copy the move list to save your game. Paste it back and load to continue later!
             </div>
         </div>
     </div>
@@ -225,7 +225,7 @@
         let gameHistory = [];
         let capturedStones = { black: 0, white: 0 };
         let lastBoardState = null;
-        let moveList = []; // Lista över alla drag i notation
+        let moveList = []; // List of all moves in notation
 
         function drawBoard() {
             ctx.fillStyle = '#F5DEB3';
@@ -363,7 +363,7 @@
                 board[x][y] = 0;
                 capturedCount++;
                 
-                // Uppdatera fångade stenar räknare bara om vi ska räkna
+                // Update captured-stone counters only when we should count
                 if (countCaptures) {
                     if (capturedColor === 1) {
                         capturedStones.black++;
@@ -469,11 +469,11 @@
         function loadMoveHistory() {
             const historyText = document.getElementById('moveHistory').value;
             if (!historyText.trim()) {
-                alert('Inget att ladda - textfältet är tomt!');
+                alert('Nothing to load - the text field is empty!');
                 return;
             }
             
-            // Nollställ spelet
+            // Reset the game
             board = Array(boardSize).fill(null).map(() => Array(boardSize).fill(0));
             currentPlayer = 1;
             gameHistory = [];
@@ -481,7 +481,7 @@
             lastBoardState = null;
             moveList = [];
             
-            // Dela upp drag
+            // Split up the moves
             const moves = historyText.split(',').map(m => m.trim()).filter(m => m.length > 0);
             
             let loadedMoves = 0;
@@ -489,14 +489,14 @@
                 const pos = notationToPosition(move);
                 if (pos) {
                     const [x, y] = pos;
-                    if (makeMove(x, y, false)) { // Ändrat till false för att bevara historiken
+                    if (makeMove(x, y, false)) { // changed to false to preserve the history
                         loadedMoves++;
                     } else {
-                        console.log(`Kunde inte ladda drag: ${move}`);
+                        console.log(`Could not load move: ${move}`);
                         break;
                     }
                 } else {
-                    console.log(`Ogiltigt drag format: ${move}`);
+                    console.log(`Invalid move format: ${move}`);
                 }
             }
             
@@ -505,30 +505,30 @@
             updatePlayerDisplay();
             updateCaptureDisplay();
             
-            alert(`Laddade ${loadedMoves} av ${moves.length} drag!`);
+            alert(`Loaded ${loadedMoves} of ${moves.length} moves!`);
         }
         
         function copyHistory() {
             const historyText = document.getElementById('moveHistory').value;
             if (!historyText.trim()) {
-                alert('Ingen historik att kopiera!');
+                alert('No history to copy!');
                 return;
             }
             
             navigator.clipboard.writeText(historyText).then(() => {
-                alert('Draghistorik kopierad till urklipp! 📋');
+                alert('Move history copied to clipboard! 📋');
             }).catch(() => {
-                // Fallback för äldre webbläsare
+                // Fallback for older browsers
                 document.getElementById('moveHistory').select();
                 document.execCommand('copy');
-                alert('Draghistorik kopierad! 📋');
+                alert('Move history copied! 📋');
             });
         }
         
         function clearHistory() {
             if (moveList.length === 0) return;
             
-            if (confirm('Vill du rensa draghistoriken? (Spelet fortsätter)')) {
+            if (confirm('Clear the move history? (The game continues)')) {
                 moveList = [];
                 updateMoveHistoryDisplay();
             }
@@ -536,7 +536,7 @@
         
         function undoMove() {
             if (gameHistory.length === 0) {
-                alert('Inget att ångra!');
+                alert('Nothing to undo!');
                 return;
             }
             
@@ -545,7 +545,7 @@
             currentPlayer = lastState.player;
             capturedStones = lastState.captured;
             
-            // Ta bort senaste draget från listan
+            // Remove the last move from the list
             moveList.pop();
             
             // Uppdatera lastBoardState
@@ -577,10 +577,10 @@
             const stonePreview = document.getElementById('stonePreview');
             
             if (currentPlayer === 1) {
-                playerText.textContent = 'Svart';
+                playerText.textContent = 'Black';
                 stonePreview.className = 'stone-preview black-stone';
             } else {
-                playerText.textContent = 'Vit';
+                playerText.textContent = 'White';
                 stonePreview.className = 'stone-preview white-stone';
             }
         }
@@ -610,7 +610,7 @@
             
             const tempBoard = board;
             board = boardCopy;
-            checkCaptures(currentPlayer, false); // false = räkna inte fångster här
+            checkCaptures(currentPlayer, false); // false = do not count captures here
             const resultingBoard = copyBoard(board);
             board = tempBoard;
             
@@ -635,7 +635,7 @@
                 
                 const captured = checkCaptures(currentPlayer);
                 
-                // Lägg till draget i notation om det inte kommer från historik
+                // Add the move to the notation if it does not come from the history
                 if (!fromHistory) {
                     moveList.push(positionToNotation(x, y));
                     updateMoveHistoryDisplay();
@@ -649,7 +649,7 @@
                 updateCaptureDisplay();
                 
                 if (captured > 0 && !fromHistory) {
-                    console.log(`Fångade ${captured} stenar!`);
+                    console.log(`Captured ${captured} stones!`);
                 }
                 
                 return true;
@@ -682,7 +682,7 @@
             
             if (historySection.classList.contains('hidden')) {
                 historySection.classList.remove('hidden');
-                toggleBtn.textContent = '📜 Dölj Historik';
+                toggleBtn.textContent = '📜 Hide History';
             } else {
                 historySection.classList.add('hidden');
                 toggleBtn.textContent = '📜';
