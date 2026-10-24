@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go Spelbräda</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #8B4513 0%, #D2B48C 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        h1 {
+            color: #2F4F2F;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .game-container {
+            background: #DEB887;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border: 3px solid #8B4513;
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            position: relative;
+        }
+        
+        .board-section {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .history-section {
+            background: rgba(255,255,255,0.95);
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #8B4513;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .history-section.hidden {
+            display: none;
+        }
+        
+        .toggle-history-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            padding: 8px 12px;
+            font-size: 14px;
+            background: rgba(255,255,255,0.9);
+            border: 2px solid #8B4513;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+        
+        .toggle-history-btn:hover {
+            background: #F5DEB3;
+            transform: scale(1.05);
+        }
+        
+        .history-section h3 {
+            margin: 0 0 10px 0;
+            color: #2F4F2F;
+            font-size: 18px;
+        }
+        
+        #moveHistory {
+            width: 100%;
+            min-height: 400px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            padding: 10px;
+            border: 2px solid #8B4513;
+            border-radius: 5px;
+            resize: vertical;
+            background: #FFFEF8;
+        }
+        
+        .history-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .history-controls button {
+            padding: 8px 15px;
+            font-size: 14px;
+        }
+        
+        canvas {
+            background: #F5DEB3;
+            border: 2px solid #8B4513;
+            cursor: pointer;
+            border-radius: 8px;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);
+            margin: 10px;
+        }
+        
+        .info {
+            margin-top: 20px;
+            text-align: center;
+            background: rgba(255,255,255,0.9);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #8B4513;
+        }
+        
+        .current-player {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2F4F2F;
+            margin-bottom: 10px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: 2px solid #8B4513;
+            background: #DEB887;
+            color: #2F4F2F;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background: #F5DEB3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .stone-preview {
+            display: inline-block;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            margin-left: 10px;
+            vertical-align: middle;
+            border: 2px solid #333;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .black-stone {
+            background: radial-gradient(circle at 30% 30%, #555, #000);
+        }
+        
+        .white-stone {
+            background: radial-gradient(circle at 30% 30%, #fff, #ddd);
+        }
+    </style>
+</head>
+<body>
+    <h1>Go Spel</h1>
+    <div class="game-container">
+        <button class="toggle-history-btn" onclick="toggleHistory()">📜 Dölj Historik</button>
+        
+        <div class="board-section">
+            <canvas id="goBoard" width="610" height="610"></canvas>
+            <div class="info">
+                <div class="current-player">
+                    Aktuell spelare: <span id="playerText">Svart</span>
+                    <span id="stonePreview" class="stone-preview black-stone"></span>
+                </div>
+                <div style="margin: 10px 0; font-size: 14px; color: #2F4F2F;">
+                    Fångade stenar - Svart: <span id="capturedWhite">0</span> | Vit: <span id="capturedBlack">0</span>
+                </div>
+                <div class="controls">
+                    <button onclick="resetGame()">Nytt Spel</button>
+                    <button onclick="pass()">Pass</button>
+                    <button onclick="undoMove()">Ångra</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="history-section" id="historySection">
+            <h3>Draghistorik</h3>
+            <textarea id="moveHistory" placeholder="Dragföljd visas här...&#10;Format: D4, Q16, D16, Q4...&#10;&#10;Du kan redigera och ladda om!"></textarea>
+            <div class="history-controls">
+                <button onclick="loadMoveHistory()">📥 Ladda Dragföljd</button>
+                <button onclick="copyHistory()">📋 Kopiera</button>
+                <button onclick="clearHistory()">🗑️ Rensa Historik</button>
+            </div>
+            <div style="font-size: 12px; color: #666; line-height: 1.4;">
+                <strong>Tips:</strong> Kopiera dragföljden för att spara spelet. Klistra in och ladda för att fortsätta senare!
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('goBoard');
+        const ctx = canvas.getContext('2d');
+        const boardSize = 19;
+        const cellSize = 30;
+        const stoneRadius = 12;
+        const margin = 35;
+        
+        const columnLabels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'];
+        
+        let board = Array(boardSize).fill(null).map(() => Array(boardSize).fill(0));
+        let currentPlayer = 1;
+        let gameHistory = [];
+        let capturedStones = { black: 0, white: 0 };
+        let lastBoardState = null;
+        let moveList = []; // Lista över alla drag i notation
+
+        function drawBoard() {
+            ctx.fillStyle = '#F5DEB3';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#8B4513';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            for (let i = 0; i < boardSize; i++) {
+                const x = margin + i * cellSize;
+                ctx.fillText(columnLabels[i], x, 18);
+                ctx.fillText(columnLabels[i], x, canvas.height - 18);
+            }
+            
+            for (let i = 0; i < boardSize; i++) {
+                const y = margin + i * cellSize;
+                const rowNumber = 19 - i;
+                ctx.fillText(rowNumber.toString(), 18, y);
+                ctx.fillText(rowNumber.toString(), canvas.width - 18, y);
+            }
+            
+            ctx.strokeStyle = '#8B4513';
+            ctx.lineWidth = 1;
+            
+            for (let i = 0; i < boardSize; i++) {
+                ctx.beginPath();
+                ctx.moveTo(margin + i * cellSize, margin);
+                ctx.lineTo(margin + i * cellSize, margin + (boardSize - 1) * cellSize);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(margin, margin + i * cellSize);
+                ctx.lineTo(margin + (boardSize - 1) * cellSize, margin + i * cellSize);
+                ctx.stroke();
+            }
+            
+            const starPoints = [
+                [3, 3], [9, 3], [15, 3],
+                [3, 9], [9, 9], [15, 9],
+                [3, 15], [9, 15], [15, 15]
+            ];
+            
+            ctx.fillStyle = '#8B4513';
+            starPoints.forEach(([x, y]) => {
+                ctx.beginPath();
+                ctx.arc(margin + x * cellSize, margin + y * cellSize, 3, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+        }
+        
+        function drawStone(x, y, player) {
+            const centerX = margin + x * cellSize;
+            const centerY = margin + y * cellSize;
+            
+            if (player === 1) {
+                const gradient = ctx.createRadialGradient(
+                    centerX - 4, centerY - 4, 2,
+                    centerX, centerY, stoneRadius
+                );
+                gradient.addColorStop(0, '#555');
+                gradient.addColorStop(1, '#000');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, stoneRadius, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+            } else if (player === 2) {
+                const gradient = ctx.createRadialGradient(
+                    centerX - 4, centerY - 4, 2,
+                    centerX, centerY, stoneRadius
+                );
+                gradient.addColorStop(0, '#fff');
+                gradient.addColorStop(1, '#ddd');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, stoneRadius, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                ctx.strokeStyle = '#999';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+
+        function getNeighbors(x, y) {
+            const neighbors = [];
+            if (x > 0) neighbors.push([x-1, y]);
+            if (x < boardSize-1) neighbors.push([x+1, y]);
+            if (y > 0) neighbors.push([x, y-1]);
+            if (y < boardSize-1) neighbors.push([x, y+1]);
+            return neighbors;
+        }
+        
+        function getGroup(x, y, visited = new Set()) {
+            const key = `${x},${y}`;
+            if (visited.has(key) || board[x][y] === 0) return [];
+            
+            visited.add(key);
+            const color = board[x][y];
+            const group = [[x, y]];
+            
+            getNeighbors(x, y).forEach(([nx, ny]) => {
+                if (board[nx][ny] === color && !visited.has(`${nx},${ny}`)) {
+                    group.push(...getGroup(nx, ny, visited));
+                }
+            });
+            
+            return group;
+        }
+        
+        function getLiberties(group) {
+            const liberties = new Set();
+            group.forEach(([x, y]) => {
+                getNeighbors(x, y).forEach(([nx, ny]) => {
+                    if (board[nx][ny] === 0) {
+                        liberties.add(`${nx},${ny}`);
+                    }
+                });
+            });
+            return liberties.size;
+        }
+        
+        function removeGroup(group, countCaptures = true) {
+            let capturedCount = 0;
+            group.forEach(([x, y]) => {
+                const capturedColor = board[x][y];
+                board[x][y] = 0;
+                capturedCount++;
+                
+                // Uppdatera fångade stenar räknare bara om vi ska räkna
+                if (countCaptures) {
+                    if (capturedColor === 1) {
+                        capturedStones.black++;
+                    } else {
+                        capturedStones.white++;
+                    }
+                }
+            });
+            return capturedCount;
+        }
+        
+        function checkCaptures(player, countCaptures = true) {
+            const opponent = player === 1 ? 2 : 1;
+            let totalCaptured = 0;
+            const visited = new Set();
+            
+            for (let x = 0; x < boardSize; x++) {
+                for (let y = 0; y < boardSize; y++) {
+                    const key = `${x},${y}`;
+                    if (board[x][y] === opponent && !visited.has(key)) {
+                        const group = getGroup(x, y);
+                        group.forEach(([gx, gy]) => visited.add(`${gx},${gy}`));
+                        
+                        if (getLiberties(group) === 0) {
+                            totalCaptured += removeGroup(group, countCaptures);
+                        }
+                    }
+                }
+            }
+            return totalCaptured;
+        }
+        
+        function wouldBeSuicide(x, y, player) {
+            board[x][y] = player;
+            
+            const opponent = player === 1 ? 2 : 1;
+            let wouldCapture = false;
+            
+            getNeighbors(x, y).forEach(([nx, ny]) => {
+                if (board[nx][ny] === opponent) {
+                    const group = getGroup(nx, ny);
+                    if (getLiberties(group) === 0) {
+                        wouldCapture = true;
+                    }
+                }
+            });
+            
+            if (wouldCapture) {
+                board[x][y] = 0;
+                return false;
+            }
+            
+            const ourGroup = getGroup(x, y);
+            const hasLiberties = getLiberties(ourGroup) > 0;
+            
+            board[x][y] = 0;
+            return !hasLiberties;
+        }
+        
+        function boardsAreEqual(board1, board2) {
+            if (!board1 || !board2) return false;
+            
+            for (let x = 0; x < boardSize; x++) {
+                for (let y = 0; y < boardSize; y++) {
+                    if (board1[x][y] !== board2[x][y]) return false;
+                }
+            }
+            return true;
+        }
+        
+        function copyBoard(board) {
+            return board.map(row => [...row]);
+        }
+        
+        function updateCaptureDisplay() {
+            document.getElementById('capturedBlack').textContent = capturedStones.black;
+            document.getElementById('capturedWhite').textContent = capturedStones.white;
+        }
+        
+        function positionToNotation(x, y) {
+            return columnLabels[x] + (19 - y);
+        }
+        
+        function notationToPosition(notation) {
+            notation = notation.trim().toUpperCase();
+            if (notation.length < 2) return null;
+            
+            const col = notation[0];
+            const row = parseInt(notation.substring(1));
+            
+            const x = columnLabels.indexOf(col);
+            const y = 19 - row;
+            
+            if (x === -1 || isNaN(row) || row < 1 || row > 19) return null;
+            return [x, y];
+        }
+        
+        function updateMoveHistoryDisplay() {
+            const historyText = moveList.join(', ');
+            document.getElementById('moveHistory').value = historyText;
+        }
+        
+        function loadMoveHistory() {
+            const historyText = document.getElementById('moveHistory').value;
+            if (!historyText.trim()) {
+                alert('Inget att ladda - textfältet är tomt!');
+                return;
+            }
+            
+            // Nollställ spelet
+            board = Array(boardSize).fill(null).map(() => Array(boardSize).fill(0));
+            currentPlayer = 1;
+            gameHistory = [];
+            capturedStones = { black: 0, white: 0 };
+            lastBoardState = null;
+            moveList = [];
+            
+            // Dela upp drag
+            const moves = historyText.split(',').map(m => m.trim()).filter(m => m.length > 0);
+            
+            let loadedMoves = 0;
+            for (const move of moves) {
+                const pos = notationToPosition(move);
+                if (pos) {
+                    const [x, y] = pos;
+                    if (makeMove(x, y, false)) { // Ändrat till false för att bevara historiken
+                        loadedMoves++;
+                    } else {
+                        console.log(`Kunde inte ladda drag: ${move}`);
+                        break;
+                    }
+                } else {
+                    console.log(`Ogiltigt drag format: ${move}`);
+                }
+            }
+            
+            drawBoard();
+            drawAllStones();
+            updatePlayerDisplay();
+            updateCaptureDisplay();
+            
+            alert(`Laddade ${loadedMoves} av ${moves.length} drag!`);
+        }
+        
+        function copyHistory() {
+            const historyText = document.getElementById('moveHistory').value;
+            if (!historyText.trim()) {
+                alert('Ingen historik att kopiera!');
+                return;
+            }
+            
+            navigator.clipboard.writeText(historyText).then(() => {
+                alert('Draghistorik kopierad till urklipp! 📋');
+            }).catch(() => {
+                // Fallback för äldre webbläsare
+                document.getElementById('moveHistory').select();
+                document.execCommand('copy');
+                alert('Draghistorik kopierad! 📋');
+            });
+        }
+        
+        function clearHistory() {
+            if (moveList.length === 0) return;
+            
+            if (confirm('Vill du rensa draghistoriken? (Spelet fortsätter)')) {
+                moveList = [];
+                updateMoveHistoryDisplay();
+            }
+        }
+        
+        function undoMove() {
+            if (gameHistory.length === 0) {
+                alert('Inget att ångra!');
+                return;
+            }
+            
+            const lastState = gameHistory.pop();
+            board = lastState.board;
+            currentPlayer = lastState.player;
+            capturedStones = lastState.captured;
+            
+            // Ta bort senaste draget från listan
+            moveList.pop();
+            
+            // Uppdatera lastBoardState
+            if (gameHistory.length > 0) {
+                lastBoardState = copyBoard(gameHistory[gameHistory.length - 1].board);
+            } else {
+                lastBoardState = null;
+            }
+            
+            drawBoard();
+            drawAllStones();
+            updatePlayerDisplay();
+            updateCaptureDisplay();
+            updateMoveHistoryDisplay();
+        }
+        
+        function drawAllStones() {
+            for (let x = 0; x < boardSize; x++) {
+                for (let y = 0; y < boardSize; y++) {
+                    if (board[x][y] !== 0) {
+                        drawStone(x, y, board[x][y]);
+                    }
+                }
+            }
+        }
+        
+        function updatePlayerDisplay() {
+            const playerText = document.getElementById('playerText');
+            const stonePreview = document.getElementById('stonePreview');
+            
+            if (currentPlayer === 1) {
+                playerText.textContent = 'Svart';
+                stonePreview.className = 'stone-preview black-stone';
+            } else {
+                playerText.textContent = 'Vit';
+                stonePreview.className = 'stone-preview white-stone';
+            }
+        }
+        
+        function getBoardPosition(event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            const boardX = Math.round((x - margin) / cellSize);
+            const boardY = Math.round((y - margin) / cellSize);
+            
+            return [boardX, boardY];
+        }
+        
+        function isValidMove(x, y) {
+            if (x < 0 || x >= boardSize || y < 0 || y >= boardSize || board[x][y] !== 0) {
+                return false;
+            }
+            
+            if (wouldBeSuicide(x, y, currentPlayer)) {
+                return false;
+            }
+            
+            const boardCopy = copyBoard(board);
+            boardCopy[x][y] = currentPlayer;
+            
+            const tempBoard = board;
+            board = boardCopy;
+            checkCaptures(currentPlayer, false); // false = räkna inte fångster här
+            const resultingBoard = copyBoard(board);
+            board = tempBoard;
+            
+            if (boardsAreEqual(resultingBoard, lastBoardState)) {
+                return false;
+            }
+            
+            return true;
+        }
+        
+        function makeMove(x, y, fromHistory = false) {
+            if (isValidMove(x, y)) {
+                lastBoardState = copyBoard(board);
+                
+                gameHistory.push({
+                    board: copyBoard(board),
+                    player: currentPlayer,
+                    captured: { ...capturedStones }
+                });
+                
+                board[x][y] = currentPlayer;
+                
+                const captured = checkCaptures(currentPlayer);
+                
+                // Lägg till draget i notation om det inte kommer från historik
+                if (!fromHistory) {
+                    moveList.push(positionToNotation(x, y));
+                    updateMoveHistoryDisplay();
+                }
+                
+                currentPlayer = currentPlayer === 1 ? 2 : 1;
+                
+                drawBoard();
+                drawAllStones();
+                updatePlayerDisplay();
+                updateCaptureDisplay();
+                
+                if (captured > 0 && !fromHistory) {
+                    console.log(`Fångade ${captured} stenar!`);
+                }
+                
+                return true;
+            }
+            return false;
+        }
+        
+        function resetGame() {
+            board = Array(boardSize).fill(null).map(() => Array(boardSize).fill(0));
+            currentPlayer = 1;
+            gameHistory = [];
+            capturedStones = { black: 0, white: 0 };
+            lastBoardState = null;
+            moveList = [];
+            
+            drawBoard();
+            updatePlayerDisplay();
+            updateCaptureDisplay();
+            updateMoveHistoryDisplay();
+        }
+        
+        function pass() {
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            updatePlayerDisplay();
+        }
+        
+        function toggleHistory() {
+            const historySection = document.getElementById('historySection');
+            const toggleBtn = document.querySelector('.toggle-history-btn');
+            
+            if (historySection.classList.contains('hidden')) {
+                historySection.classList.remove('hidden');
+                toggleBtn.textContent = '📜 Dölj Historik';
+            } else {
+                historySection.classList.add('hidden');
+                toggleBtn.textContent = '📜';
+            }
+        }
+        
+        canvas.addEventListener('click', (event) => {
+            const [x, y] = getBoardPosition(event);
+            makeMove(x, y);
+        });
+        
+        canvas.addEventListener('mousemove', (event) => {
+            const [x, y] = getBoardPosition(event);
+            
+            if (isValidMove(x, y)) {
+                canvas.style.cursor = 'pointer';
+                
+                drawBoard();
+                drawAllStones();
+                
+                const centerX = margin + x * cellSize;
+                const centerY = margin + y * cellSize;
+                
+                ctx.save();
+                ctx.globalAlpha = 0.5;
+                
+                if (currentPlayer === 1) {
+                    ctx.fillStyle = '#333';
+                } else {
+                    ctx.fillStyle = '#fff';
+                    ctx.strokeStyle = '#999';
+                    ctx.lineWidth = 2;
+                }
+                
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, stoneRadius, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                if (currentPlayer === 2) {
+                    ctx.stroke();
+                }
+                
+                ctx.restore();
+            } else {
+                canvas.style.cursor = 'default';
+            }
+        });
+        
+        canvas.addEventListener('mouseleave', () => {
+            drawBoard();
+            drawAllStones();
+            canvas.style.cursor = 'default';
+        });
+        
+        drawBoard();
+        updatePlayerDisplay();
+        updateCaptureDisplay();
+    </script>
+</body>
+</html>
